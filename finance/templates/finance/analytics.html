@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - Financial Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .sidebar a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            display: block;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover {
+            background: rgba(255,255,255,0.1);
+            padding-left: 30px;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        canvas {
+            max-height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 p-0 sidebar">
+                <div class="p-4">
+                    <h3 class="text-white">💰 FinanceTrack</h3>
+                </div>
+                <nav>
+                    <a href="{% url 'dashboard' %}">📊 Dashboard</a>
+                    <a href="{% url 'accounts' %}">🏦 Accounts</a>
+                    <a href="{% url 'analytics' %}" class="active">📈 Analytics</a>
+                    <a href="{% url 'reports' %}">📋 Reports</a>
+                    <a href="{% url 'logout' %}">🚪 Logout</a>
+                </nav>
+            </div>
+            
+            <!-- Main content -->
+            <div class="col-md-10 p-4">
+                <h2 class="mb-4">Financial Analytics</h2>
+                
+                <!-- Summary Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card text-white bg-success">
+                            <div class="card-body">
+                                <h6>Total Income</h6>
+                                <h3>${{ total_income|floatformat:2 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-white bg-danger">
+                            <div class="card-body">
+                                <h6>Total Expenses</h6>
+                                <h3>${{ total_expense|floatformat:2 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-white bg-primary">
+                            <div class="card-body">
+                                <h6>Net Balance</h6>
+                                <h3>${{ net_balance|floatformat:2 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bar Chart -->
+                <div class="chart-container">
+                    <h5>Monthly Income vs Expenses</h5>
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+                
+                <!-- Two Column Charts -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Expense Distribution by Category</h5>
+                            <canvas id="pieChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Spending Trend (Last 30 Days)</h5>
+                            <canvas id="lineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Monthly Bar Chart
+        const monthlyData = {{ monthly_data|safe }};
+        const months = {{ months|safe }};
+        
+        const incomeData = months.map((_, i) => monthlyData[i+1]?.income || 0);
+        const expenseData = months.map((_, i) => monthlyData[i+1]?.expense || 0);
+        
+        new Chart(document.getElementById('monthlyChart'), {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: incomeData,
+                        backgroundColor: 'rgba(40, 167, 69, 0.5)',
+                        borderColor: 'rgb(40, 167, 69)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Expenses',
+                        data: expenseData,
+                        backgroundColor: 'rgba(220, 53, 69, 0.5)',
+                        borderColor: 'rgb(220, 53, 69)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Amount ($)'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Pie Chart
+        const categoryExpenses = {{ category_expenses|safe }};
+        new Chart(document.getElementById('pieChart'), {
+            type: 'pie',
+            data: {
+                labels: Object.keys(categoryExpenses),
+                datasets: [{
+                    data: Object.values(categoryExpenses),
+                    backgroundColor: [
+                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                        '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // Line Chart
+        const spendingTrend = {{ spending_trend|safe }};
+        new Chart(document.getElementById('lineChart'), {
+            type: 'line',
+            data: {
+                labels: spendingTrend.map(item => item.date),
+                datasets: [{
+                    label: 'Daily Expenses',
+                    data: spendingTrend.map(item => item.amount),
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Amount ($)'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
