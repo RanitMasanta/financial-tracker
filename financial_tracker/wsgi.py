@@ -1,7 +1,7 @@
-import os
 import sys
+import os
 
-path = '/home/yourusername/financial_tracker'
+path = '/home/Ranit/financial-tracker'
 if path not in sys.path:
     sys.path.append(path)
 
